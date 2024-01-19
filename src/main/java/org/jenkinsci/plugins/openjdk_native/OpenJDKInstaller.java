@@ -40,7 +40,9 @@ public class OpenJDKInstaller extends ToolInstaller{
     public static final String OPENJDK_HOME_BIN = "/bin/java";
     public static final String OPENJDK_BIN = "/usr/bin";
     
-    public final OpenJDKPackage openjdkPackage; 
+    public final OpenJDKPackage openjdkPackage;
+
+    public UpkgInstaller upkgInstaller;
     
     @DataBoundConstructor
     public OpenJDKInstaller(OpenJDKPackage openjdkPackage) {
@@ -48,21 +50,23 @@ public class OpenJDKInstaller extends ToolInstaller{
         this.openjdkPackage = openjdkPackage;
     }
     
-    public OpenJDKPackage getPackageName(){
-        return openjdkPackage;
-    }
-    
     public FilePath performInstallation(ToolInstallation tool, Node node, TaskListener log) throws IOException, InterruptedException {
-        boolean installed = isInstalled(node, log, openjdkPackage, false);
-        if(!installed)
-            installViaYum(node, log, false);
+        String preferredPackageManager = "use to allow preferred selection later"; // TODO: Add option to select prferred package manager
+        upkgInstaller = new UpkgInstaller(node.createLauncher(log), log.getLogger(), getPackageName(false));
 
-        installed = isInstalled(node, log, openjdkPackage, true);
-        if (!installed)
-            installViaYum(node, log, true);
+        if(!upkgInstaller.isInstalled(preferredPackageManager)) { // If it is not installed with devel false then install
+            if (!upkgInstaller.install(preferredPackageManager)) { // Install returns isInstalled boolean after completion
+                upkgInstaller.setPackageName(getPackageName(true)); // If it is still not installed try again with devel true
+                upkgInstaller.install(preferredPackageManager);
+            } 
+        }
 
         switchAlternatives(node, log);
         return new FilePath(node.getChannel(), OPENJDK_BIN);  //if local (on master), channel is null
+    }
+
+    provate getPackageName(boolean devel) {
+        return devel ? openjdkPackage.getDevelPackageName() : openjdkPackage.getPackageName();
     }
     
     private void switchAlternatives(Node node, TaskListener log){
@@ -73,47 +77,6 @@ public class OpenJDKInstaller extends ToolInstaller{
             int exitStatus  = l.launch().cmds("sudo", "alternatives", "--set", "java", OPENJDK_HOME_PREFIX + "$(rpm -q " + openjdkPackage.getPackageName() +" )"+ OPENJDK_HOME_BIN).stdout(output).join();
             if(exitStatus != 0){
                 byte[] errMsg = ("[OpenJDK ERROR] Switching OpenJDK via alternatives to " + openjdkPackage.getPackageName() + " failed! " + OPENJDK_BIN + " may not exists or point to different java version!\n").getBytes(Charset.defaultCharset());
-                annotator.eol(errMsg,errMsg.length);
-            }
-        } catch (IOException e){
-            e.printStackTrace();
-        } catch (InterruptedException e){
-            e.printStackTrace();
-        }
-    }
-    
-    private boolean isInstalled(Node node, TaskListener log, OpenJDKPackage openjdkPackage, boolean devel){
-        log.getLogger().println("Checking OpenJDK installation...");
-        if (node == null)
-            throw new IllegalArgumentException("must pass non-null node");
-        PrintStream output = log.getLogger();
-        Launcher l = node.createLauncher(log);
-        int exitStatus = 1;
-        try{
-            // first check we are on RH-like distro //TODO maybe check only is rpm and alternatives are present?
-            FilePath rhRelease = new FilePath(node.getChannel(),"/etc/redhat-release");
-            if(!rhRelease.exists())
-                throw new IllegalArgumentException("Node " + node.getDisplayName() + " doesn't seem to be running on RedHat-like distro");
-            
-            String packageName = devel ? openjdkPackage.getDevelPackageName() : openjdkPackage.getPackageName();
-            exitStatus  = l.launch().cmds("rpm", "-q", packageName).stdout(output).join();
-        } catch (IOException e){
-            e.printStackTrace();
-        } catch (InterruptedException e){
-            e.printStackTrace();
-        }
-        return (exitStatus == 0);
-    }
-    
-    private void installViaYum(Node node, TaskListener log, boolean devel){
-        log.getLogger().print(openjdkPackage.getPackageName() + " not installed, trying to install via yum ..." );
-        Launcher l = node.createLauncher(log);
-        try (OpenJDKConsoleAnnotator annotator = new OpenJDKConsoleAnnotator(log.getLogger())) {
-            PrintStream output = log.getLogger();
-            String packageName = devel ? openjdkPackage.getDevelPackageName() : openjdkPackage.getPackageName();
-            int exitStatus  = l.launch().cmds("sudo", "yum", "-y", "install", packageName).stdout(output).join();
-            if(exitStatus != 0){
-                byte[] errMsg = ("[OpenJDK ERROR] Installation of " + openjdkPackage.getPackageName() + " failed!").getBytes(Charset.defaultCharset());
                 annotator.eol(errMsg,errMsg.length);
             }
         } catch (IOException e){

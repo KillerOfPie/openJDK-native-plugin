@@ -26,6 +26,13 @@
     </developer>
   </developers>
 
+  <contributors>
+    <contributor>
+      <name>KillerOfPie</name>
+      <email>me@killerofpie.com</email>
+    </contributor>
+  </contributors>
+
   <scm>
     <connection>scm:git:git@github.com:jenkinsci/openJDK-native-plugin.git</connection>
     <developerConnection>scm:git:git@github.com:jenkinsci/openJDK-native-plugin.git</developerConnection>

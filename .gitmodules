@@ -1,0 +1,3 @@
+[submodule "src/main/java/org/jenkinsci/plugins/openjdk_native/upkg"]
+	path = src/main/java/org/jenkinsci/plugins/openjdk_native/upkg
+	url = https://github.com/KillerOfPie/upkg-package-manager-rosetta-stone.git
