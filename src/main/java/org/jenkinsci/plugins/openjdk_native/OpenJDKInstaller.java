@@ -65,7 +65,7 @@ public class OpenJDKInstaller extends ToolInstaller{
         return new FilePath(node.getChannel(), OPENJDK_BIN);  //if local (on master), channel is null
     }
 
-    provate getPackageName(boolean devel) {
+    private String getPackageName(boolean devel) {
         return devel ? openjdkPackage.getDevelPackageName() : openjdkPackage.getPackageName();
     }
     

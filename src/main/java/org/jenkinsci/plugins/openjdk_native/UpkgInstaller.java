@@ -2,9 +2,9 @@ package org.jenkinsci.plugins.openjdk_native;
 
 import java.nio.file.Files;
 import java.util.HashMap;
-import java.io.ByteArrayInputStream;
-import java.io.CharArrayReader;
+import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Path;
@@ -34,15 +34,19 @@ public class UpkgInstaller {
                 this.packageName = packageName;
                 this.l = l;
                 
-                try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, filter)) {
+                try (DirectoryStream<Path> stream = Files.newDirectoryStream(Path.of("./upkg"), filter)) {
                     for (Path path : stream) {
-                        Proc proc = l.launch().cmds("sh", path, "manager").stdout(output).readStdout().start();
-                        int exitStatus  = proc.join();
+                        Proc proc = l.launch().cmds("sh", path.toAbsolutePath().toString(), "manager").stdout(output).readStdout().start();
+                        try {
+                            int exitStatus = proc.join();
                         if(exitStatus > 0) {                    
                             managers.put(new String(proc.getStdout().readAllBytes(), StandardCharsets.UTF_8), path);
                         }
+                        } catch (InterruptedException ignored) {}
                     }
-                } 
+                } catch(IOException e) {
+                    e.printStackTrace();
+                }
     }
 
     private Path selManager(String preferredManager) {
@@ -75,7 +79,12 @@ public class UpkgInstaller {
     }
 
     public boolean isInstalled(String preferredManager) {
-        return l.launch().cmds(baseCmd(selManager(preferredManager), "list")).stdout(output).join() == 0;
+        try {
+            return l.launch().cmds(baseCmd(selManager(preferredManager), "list")).stdout(output).join() == 0;
+        } catch (IOException | InterruptedException e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 
     public void setPackageName(String packageName) {
