@@ -1,0 +1,15 @@
+{
+    "customizations": {
+        "codespaces": {
+            "repositories": {
+                "KillerOfPie/upkg": {
+                    "permissions": "write-all"
+                },
+                "KillerOfPie/openJDK-native-plugin": {
+                    "permissions": "write-all"
+                }
+            }
+        }
+    },
+    "image":"mcr.microsoft.com/devcontainers/universal:2"
+}
